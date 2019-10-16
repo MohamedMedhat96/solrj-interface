@@ -26,7 +26,10 @@ import esrinea.gss.solrAssignment.Collection.CollectionDTO;
 import esrinea.gss.solrAssignment.Collection.CollectionModel;
 import esrinea.gss.solrAssignment.Document.DocumentModel;
 import esrinea.gss.solrAssignment.Field.FieldModel;
+import esrinea.gss.solrAssignment.exceptions.CollectionNotFoundException;
+import esrinea.gss.solrAssignment.exceptions.CustomServerException;
 import esrinea.gss.solrAssignment.exceptions.DocumentNotFoundException;
+import esrinea.gss.solrAssignment.exceptions.IncorrectInputException;
 
 @Service
 public class SolrService {
@@ -60,6 +63,14 @@ public class SolrService {
 	}
 
 	public Response search(CollectionDTO collection) {
+		if(collection.getQuery() == null ||	 collection.getQuery().equals(""))
+		{
+			throw new IncorrectInputException("Query cannot be empty", new Exception());
+				}
+		if(collection.getName() == null || collection.getName().equals(""))
+		{
+			throw new IncorrectInputException("Collection name cannot be empty", new Exception());
+		}
 		CloudSolrClient solrClient = this.createConnection();
 		String query = collection.getQuery();
 		String collectionName = collection.getName();
@@ -83,8 +94,17 @@ public class SolrService {
 		return response;
 	}
 
-	public Response addCollection(CollectionModel collection) throws Throwable {
-
+	public Response addCollection(CollectionModel collection) throws CustomServerException {
+		
+		if(collection.getShards() <= 0)
+			throw new IncorrectInputException("Shards need to be at least one", new Exception());
+		if(collection.getReplicas() <= 0)
+			throw new IncorrectInputException("Replicas need to be at least one", new Exception());
+		if(collection.getName() == null || collection.getName().equals(""))
+		{
+			throw new IncorrectInputException("Collection name cannot be empty", new Exception());
+		}
+		
 		CloudSolrClient solrClient = this.createConnection();
 		String collectionName = collection.getName();
 		int shards = collection.getShards();
@@ -96,35 +116,43 @@ public class SolrService {
 			create.process(solrClient);
 
 		} catch (Exception e) {
-			Response response = new Response();
-			response.setMessage("failed");
-			return response;
+			throw new CustomServerException(e.getMessage(), e);
 		}
 		// rClient.commit(collectionName);
 
 		List<FieldModel> fields = collection.getFields();
-
+		try {
 		for (FieldModel field : fields) {
 			Map<String, Object> fieldAttributes = new HashMap<String, Object>();
-
+			if(field.getName()!=null)
 			fieldAttributes.put("name", field.getName());
+			else
+				throw new IncorrectInputException("Field name cannot be empty", new Exception());
+			if(field.getType()!=null)
 			fieldAttributes.put("type", field.getType());
-			fieldAttributes.put("stored", field.getStored());
+			else
+				throw new IncorrectInputException("Field type cannot be empty", new Exception());
+			if(field.getIndexed() != null)
 			fieldAttributes.put("indexed", field.getIndexed());
+			if(field.getMultiValued()!=null)
 			fieldAttributes.put("multiValued", field.getMultiValued());
-			fieldAttributes.put("required", field.getRequried());
+			
 			SchemaRequest.AddField schemaRequest = new SchemaRequest.AddField(fieldAttributes);
-			try {
 				SchemaResponse.UpdateResponse response = schemaRequest.process(solrClient, collectionName);
-
-				String x = response.jsonStr();
-				System.out.println(x);
-			} catch (SolrServerException e) {
-				System.out.println(e.getMessage());
-			} catch (IOException e) {
-				System.out.println(fieldAttributes);
-			}
-
+		}
+		}
+		catch (SolrServerException e) {
+			this.removeCollection(collection);
+			throw new CustomServerException(e.getMessage(), e);
+		} catch (IOException e) {
+			this.removeCollection(collection);
+			throw new CustomServerException(e.getMessage(), e);
+			
+		}catch(IncorrectInputException e)
+		{
+			this.removeCollection(collection);
+			throw e;
+			
 		}
 
 		Response x = new Response();
@@ -133,10 +161,15 @@ public class SolrService {
 		return x;
 	}
 
-	public Response addDocument(DocumentModel json,String collectionName) {
+	public Response addDocument(DocumentModel json,String collectionName) throws CustomServerException {
 		CloudSolrClient solrClient = this.createConnection();
 	
+		if(collectionName == null || collectionName.isEmpty())
+			throw new IncorrectInputException("Collection name cannot be empty", new Exception());
 		
+		if(json.getFields().size() == 0)
+			throw new IncorrectInputException("Document Fields cannot be empty", new Exception());
+
 		SolrInputDocument doc = new SolrInputDocument();
 		Map<String,Object> map = json.getFields();
 		  for (Entry<String, Object> entry : map.entrySet())  {
@@ -147,36 +180,34 @@ public class SolrService {
 			solrClient.add(collectionName, doc);
 			solrClient.commit(collectionName);
 		} catch (SolrServerException | IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new CustomServerException(e.getMessage(), e);
 		}catch(SolrException e)
 		{
-			Response response = new Response();
-			response.setMessage(e.getMessage());
-			response.setCode(404);
-			return response;
+			throw new CollectionNotFoundException(e.getMessage(),e);
 		}
 		
 		
 		Response response = new Response();
-		response.setMessage("Success!");
-		
+		response.setMessage("Document Added");
+		response.setCode(200);
 		return response;
 		
 		
 	}
 
-	public Response removeCollection(CollectionModel json) {
+	public Response removeCollection(CollectionModel json) throws CustomServerException {
 
 		CloudSolrClient solrClient = this.createConnection();
 		String collection = json.getName();
-		CollectionAdminRequest.Delete d = CollectionAdminRequest.deleteCollection(collection);
+		
 		try {
+			CollectionAdminRequest.Delete d = CollectionAdminRequest.deleteCollection(collection);
 			d.process(solrClient);
 		} catch (SolrServerException | IOException e) {
-			Response response = new Response();
-			response.setMessage("Failed");
-			return response;
+			throw new CustomServerException(e.getMessage(), e);
+		}catch(SolrException e)
+		{
+			throw new CollectionNotFoundException(e.getMessage(),e);
 		}
 
 		Response response = new Response();
@@ -186,7 +217,7 @@ public class SolrService {
 
 	}
 	
-	public Response removeDocument(DocumentModel json, String collectionName)
+	public Response removeDocument(DocumentModel json, String collectionName) throws Exception
 	{
 		CloudSolrClient solrClient = this.createConnection();
 		
@@ -200,12 +231,11 @@ public class SolrService {
 			solrClient.deleteById(collectionName, documentId);
 			solrClient.commit();
 		} catch (SolrServerException | IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new CustomServerException(e.getMessage(), e);
 		}
 		catch(SolrException e)
 		{
-			throw e;
+			throw new CollectionNotFoundException(e.getMessage(),e);
 		}catch(DocumentNotFoundException e)
 		{
 			throw e;
