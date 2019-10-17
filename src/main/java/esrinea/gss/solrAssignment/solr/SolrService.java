@@ -12,6 +12,7 @@ import java.util.Map.Entry;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
@@ -49,16 +50,27 @@ public class SolrService {
 		QueryResponse response = null;
 		SolrDocumentList list = null;
 		
-		try {
 			QueryRequest req = new QueryRequest(solrQuery);
 			
 			solrClient.setDefaultCollection(collection);
-			response = req.process(solrClient);
+			try {
+				response = req.process(solrClient);
+			} catch (SolrServerException e) {
+				
+			} catch (IOException e) {
+				
+				}
+			catch(RemoteSolrException e)
+			{
+				throw new IncorrectInputException("The field is undefined: "+(solrQuery.getQuery().split(":"))[0], e);
+			}
+			catch(SolrException e)
+			{
+				throw new CollectionNotFoundException(e.getMessage(),e);
+			}
 			
 			list = response.getResults();
-		} catch (Exception e) {
-			e.printStackTrace();// handle errors in this block
-		}
+		
 		return list;
 	}
 
@@ -83,14 +95,14 @@ public class SolrService {
 		Response response = new Response();
 		if (documentList != null && documentList.size() > 0) {
 			response.setData(documentList);
+} else {
+			
+			response.setData( new ArrayList());
+		}
 
 			response.setMessage("Query Executed");
 			response.setCode(200);
-		} else {
-			response.setMessage("Failure");
-
-		}
-		System.out.println(query.toString());
+				System.out.println(query.toString());
 		return response;
 	}
 
@@ -112,12 +124,18 @@ public class SolrService {
 		CollectionAdminRequest.Create create = CollectionAdminRequest.createCollection(collectionName, shards,
 				replicas);
 
-		try {
-			create.process(solrClient);
+		
+			try {
+				create.process(solrClient);
+			} catch (SolrServerException e) {
+				throw new CustomServerException(e.getMessage(),e);
+			} catch (IOException e) {
+				throw new CustomServerException(e.getMessage(),e);
+			}catch(RemoteSolrException e) {
+				throw new IncorrectInputException("The collection you entered already exists", e);
+			}
 
-		} catch (Exception e) {
-			throw new CustomServerException(e.getMessage(), e);
-		}
+		
 		// rClient.commit(collectionName);
 
 		List<FieldModel> fields = collection.getFields();

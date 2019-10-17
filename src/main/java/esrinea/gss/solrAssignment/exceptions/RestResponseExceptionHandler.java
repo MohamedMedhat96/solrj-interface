@@ -47,16 +47,16 @@ public class RestResponseExceptionHandler extends ResponseEntityExceptionHandler
 		String code = env.getProperty("http.codes.itemnotfound");
 		String message = env.getProperty("http.error.itemnotfound");
 		if(ex instanceof DocumentNotFoundException)
-			message = "The Document" + message;
+			message = "The Document " + message;
 		else
-			message = "The Collection" + message;
+			message = "The Collection " + message;
 		response.setCode(HttpStatus.valueOf(code).value());
 		response.setMessage(message + ": " + ex.getMessage());
 		return new ResponseEntity<>(response, HttpStatus.valueOf(code));
 	}
 	
 	
-	@ExceptionHandler(value = {CustomServerException.class, Exception.class})
+	@ExceptionHandler(value = {CustomServerException.class})
 	protected ResponseEntity<Object> serverError(RuntimeException ex, WebRequest request)
 	{
 		Response response = new Response();
