@@ -36,6 +36,10 @@ import esrinea.gss.solrAssignment.exceptions.IncorrectInputException;
 public class SolrService {
 	CloudSolrClient solrClient;
 
+/**
+ * Creating a SolrCloud connection instance.
+ * @return CloudSolrClient an instance of the SolrCloud connection.
+ */
 	public CloudSolrClient createConnection() {
 		Collection<String> solrNodes = new ArrayList<>();
 		solrNodes.add("http://localhost:8983/solr");
@@ -45,6 +49,14 @@ public class SolrService {
 		return solrClient;
 
 	}
+	
+	/**
+	 * Returning all documents in a collection based on a specific Query.
+	 * @param solrQuery The query you search SolrCloud with.
+	 * @param collection The collection you wish to invoke the query on.
+	 * @param solrClient The SolrCloud connections instance.
+	 * @return SolrDocumentList the list of documents that fit the query
+	 */
 
 	public SolrDocumentList getSolrResponse(SolrQuery solrQuery, String collection, CloudSolrClient solrClient) {
 		QueryResponse response = null;
@@ -73,6 +85,13 @@ public class SolrService {
 		
 		return list;
 	}
+	
+	/**
+	 * Helper method for getting documents in a collections based on a specific query 
+	 * 
+	 * @param CollectionDTO a collection Data Transfer Object which contains the collection name and the Query
+	 * @return Response with the list of documents, success/failure message and success/failure code.
+	 */
 
 	public Response search(CollectionDTO collection) {
 		if(collection.getQuery() == null ||	 collection.getQuery().equals(""))
@@ -106,6 +125,13 @@ public class SolrService {
 		return response;
 	}
 
+	
+	/**
+	 * Adding a collection to SolrCloud
+	 * @param collection that you wish to add with the name, number of shards and number of replicas.
+	 * @return Response with the success code and success message.
+	 * @throws CustomServerException 
+	 */
 	public Response addCollection(CollectionModel collection) throws CustomServerException {
 		
 		if(collection.getShards() <= 0)
@@ -178,6 +204,13 @@ public class SolrService {
 		x.setMessage("Passed");
 		return x;
 	}
+	/**
+	 * Adding a document to a collection
+	 * @param document the document you wish to add.
+	 * @param collectionName the collection name you wish to add the document to.
+	 * @return Response Success message and the failure message.
+	 * @throws CustomServerException
+	 */
 
 	public Response addDocument(DocumentModel json,String collectionName) throws CustomServerException {
 		CloudSolrClient solrClient = this.createConnection();
@@ -204,6 +237,7 @@ public class SolrService {
 			throw new CollectionNotFoundException(e.getMessage(),e);
 		}
 		
+
 		
 		Response response = new Response();
 		response.setMessage("Document Added");
@@ -212,6 +246,13 @@ public class SolrService {
 		
 		
 	}
+	
+	/**
+	 * Removing a collection from SolrCloud given the collection name.
+	 * @param collection the name of the collection that you want to be removed
+	 * @return response returning the success/failure code and success/failure message.
+	 * @throws CustomServerException
+	 */
 
 	public Response removeCollection(CollectionModel json) throws CustomServerException {
 
@@ -234,8 +275,14 @@ public class SolrService {
 		return response;
 
 	}
-	
-	public Response removeDocument(DocumentModel json, String collectionName) throws Exception
+	/**
+	 * Removing a document from a collection.
+	 * @param document The document ID you wish to remove
+	 * @param collectionName The collection name you wish to remove the document from.
+	 * @return response with the success/failure code and the success/failure message.
+	 * @throws Exception
+	 */
+	public Response removeDocument(DocumentModel json, String collectionName)
 	{
 		CloudSolrClient solrClient = this.createConnection();
 		

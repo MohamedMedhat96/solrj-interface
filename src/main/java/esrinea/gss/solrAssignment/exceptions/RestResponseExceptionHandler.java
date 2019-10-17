@@ -59,12 +59,13 @@ public class RestResponseExceptionHandler extends ResponseEntityExceptionHandler
 	@ExceptionHandler(value = {CustomServerException.class})
 	protected ResponseEntity<Object> serverError(RuntimeException ex, WebRequest request)
 	{
+		//Handling System Exceptions
 		Response response = new Response();
 		String code = env.getProperty("http.codes.serverexception");
-		String message = env.getProperty("http.error.serverexception");
+		String message;
 		response.setCode(HttpStatus.valueOf(code).value());
 	
-		response.setMessage(message + ": " + ex.getMessage());
+		response.setMessage(ex.getMessage());
 		return new ResponseEntity<>(response, HttpStatus.valueOf(code));
 	}
 	

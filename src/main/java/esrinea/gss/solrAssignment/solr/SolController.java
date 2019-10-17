@@ -20,6 +20,7 @@ public class SolController {
 	@Autowired
 	SolrService service;
 	
+	
 	@GetMapping("/collections")
 	public Response searchByQuery(@RequestBody CollectionDTO json) {
 		
